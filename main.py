@@ -125,7 +125,7 @@ def generate_base_colors(average_rgb):
     """Generates 8 base colors with more defined dark, mid, and bright ranges."""
     shades = generate_shades(average_rgb, 26)
     base_colors_rgb = [
-        shades[4],
+        shades[3],
         shades[6],
         shades[8],
         shades[10],
@@ -160,7 +160,7 @@ def generate_accent_colors(image_path, num_colors=8):
 
     matches, remaining = find_most_similar_subset(cluster_centers, target6)
 
-    f = 0.6
+    f = 0.5
     for i in range(len(matches)):
         m = matches[i]
         n = [0,0,0]
