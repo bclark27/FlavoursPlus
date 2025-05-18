@@ -6,8 +6,77 @@ import os
 import shutil
 import subprocess
 import colorsys
+import numpy as np
+from itertools import combinations
 
 home_dir = '/home/ben/'
+
+def color_similarity(color1, color2):
+  """Calculates the Euclidean distance between two RGB colors (handles both tuples and arrays)."""
+  color1 = np.array(color1)
+  color2 = np.array(color2)
+  return np.sqrt(np.sum((color1 - color2) ** 2))
+
+def find_most_similar_subset(random_colors, target_colors):
+  """
+  Finds the subset of random colors that are most similar to the target colors.
+
+  Args:
+    random_colors: A list of RGB color tuples or NumPy arrays.
+    target_colors: A list of RGB color tuples or NumPy arrays.
+
+  Returns:
+    A tuple containing:
+      - A list of the 6 most similar random colors (in a matched order).
+      - A list of the 2 least similar random colors.
+  """
+  if len(target_colors) != 6 or len(random_colors) != 8:
+    raise ValueError("Target colors should be 6 and random colors should be 8.")
+
+  best_similarity_score = float('inf')
+  best_matching_subset = None
+  remaining_colors = None
+
+  # Convert random_colors to a list of tuples for use with combinations and sets
+  random_colors_tuples = [tuple(color) for color in random_colors]
+
+  for combo_tuple in combinations(random_colors_tuples, 6):
+    combo = list(combo_tuple) # Convert back to list for easier use later
+    current_similarity_score = 0
+    remaining_tuples = list(set(random_colors_tuples) - set(combo_tuple))
+    remaining = [list(color_tuple) for color_tuple in remaining_tuples] # Convert back to lists
+
+    # Calculate the minimum distance for each target color to the current combo
+    for target_color in target_colors:
+      min_distance_to_combo = float('inf')
+      for random_color in combo:
+        distance = color_similarity(target_color, random_color)
+        min_distance_to_combo = min(min_distance_to_combo, distance)
+      current_similarity_score += min_distance_to_combo
+
+    if current_similarity_score < best_similarity_score:
+      best_similarity_score = current_similarity_score
+      best_matching_subset = list(combo)
+      remaining_colors = remaining
+
+  # Now, we need to order the best matching subset to correspond to the target colors
+  ordered_subset = []
+  available_subset = list(best_matching_subset)
+
+  for target_color in target_colors:
+    best_match = None
+    min_distance = float('inf')
+
+    for color in available_subset:
+      distance = color_similarity(target_color, color)
+      if distance < min_distance:
+        min_distance = distance
+        best_match = color
+
+    ordered_subset.append(best_match)
+    available_subset.remove(best_match)
+
+  return ordered_subset, remaining_colors
 
 def hex_to_rgb(hex_color):
     """Converts a hex color string to an RGB tuple."""
@@ -54,16 +123,16 @@ def generate_shades(rgb, num_shades):
 
 def generate_base_colors(average_rgb):
     """Generates 8 base colors with more defined dark, mid, and bright ranges."""
-    shades = generate_shades(average_rgb, 16)
+    shades = generate_shades(average_rgb, 26)
     base_colors_rgb = [
-        shades[2],
-        shades[3],
-        shades[5],
-        shades[7],
-        shades[9],
-        shades[11],
-        shades[13],
-        shades[14],
+        shades[4],
+        shades[6],
+        shades[8],
+        shades[10],
+        shades[18],
+        shades[20],
+        shades[22],
+        shades[24],
     ]
     return [rgb_to_hex(c) for c in base_colors_rgb]
 
@@ -77,7 +146,31 @@ def generate_accent_colors(image_path, num_colors=8):
     kmeans = KMeans(n_clusters=num_colors, random_state=0, n_init=10)
     kmeans.fit(pixels)
     cluster_centers = kmeans.cluster_centers_.astype(int)
-    return [rgb_to_hex(tuple(c)) for c in cluster_centers]
+    
+    clusters = [(x[0], x[1], x[2]) for x in cluster_centers]
+
+    target6 = [
+        hex_to_rgb('#a54242'),
+        hex_to_rgb('#de935f'),
+        hex_to_rgb('#f0c674'),
+        hex_to_rgb('#b5bd68'),
+        hex_to_rgb('#81a2be'),
+        hex_to_rgb('#5f819d'),
+    ]
+
+    matches, remaining = find_most_similar_subset(cluster_centers, target6)
+
+    for i in range(len(matches)):
+        m = matches[i]
+        n = [0,0,0]
+        n[0] = int((m[0] + target6[i][0]) / 2)
+        n[1] = int((m[1] + target6[i][1]) / 2)
+        n[2] = int((m[2] + target6[i][2]) / 2)
+        matches[i] = tuple(n)
+
+    matches += remaining
+
+    return [rgb_to_hex(tuple(c)) for c in matches]
 
 def format_terminal_colors(base_colors, accent_colors, name):
     output = f"scheme: \"{name}\"\nauthor: \"me\"\n"
@@ -137,7 +230,6 @@ def main():
     base_colors = generate_base_colors(average_color_rgb)
     accent_colors = generate_accent_colors(image_path)
     terminal_colors = format_terminal_colors(base_colors, accent_colors, scheme_name)
-
     print("\nGenerated 16-color scheme for Linux terminal:\n")
     print(terminal_colors)
 
