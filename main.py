@@ -160,12 +160,14 @@ def generate_accent_colors(image_path, num_colors=8):
 
     matches, remaining = find_most_similar_subset(cluster_centers, target6)
 
+    f = 0.6
     for i in range(len(matches)):
         m = matches[i]
         n = [0,0,0]
-        n[0] = int((m[0] + target6[i][0]) / 2)
-        n[1] = int((m[1] + target6[i][1]) / 2)
-        n[2] = int((m[2] + target6[i][2]) / 2)
+        #n[0] = int((m[0] + target6[i][0]) / 2)
+        n[0] = int((target6[i][0] - m[0]) * f + m[0])
+        n[1] = int((target6[i][1] - m[1]) * f + m[1])
+        n[2] = int((target6[i][2] - m[2]) * f + m[2])
         matches[i] = tuple(n)
 
     matches += remaining
