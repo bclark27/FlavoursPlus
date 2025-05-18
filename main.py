@@ -5,6 +5,7 @@ import sys
 import os
 import shutil
 import subprocess
+import colorsys
 
 home_dir = '/home/ben/'
 
@@ -24,13 +25,48 @@ def get_average_color(image_path):
     average = np.mean(pixels, axis=0).astype(int)
     return tuple(average)
 
+def generate_shades(rgb, num_shades):
+    """
+    Generates a list of shades for a given hex color.
+
+    Args:
+        hex_color: The hex color string (e.g., "#RRGGBB").
+        num_shades: The number of shades to generate.
+
+    Returns:
+        A list of hex color strings representing the shades.
+    """
+    
+    rgb = tuple(x / 255 for x in rgb)
+
+    # Convert RGB to HLS
+    h, l, s = colorsys.rgb_to_hls(*rgb)
+
+    # Generate shades by varying lightness
+    shade_values = np.linspace(0.0, 1.0, num_shades)
+    shades_hls = [(h, shade, s) for shade in shade_values]
+
+    # Convert shades back to RGB and then to hex
+    shades_rgb = [colorsys.hls_to_rgb(*hls) for hls in shades_hls]
+    shades_255_rgb = [tuple((int(r * 255), int(g * 255), int(b * 255))) for r, g, b in shades_rgb]
+
+    return shades_255_rgb
+
 def generate_base_colors(average_rgb):
-    """Generates 8 base colors from darkest to brightest based on an average RGB."""
-    base_colors_rgb = []
-    for i in np.linspace(0.2, 1.0, 8):  # Scale from 20% to 100% brightness
-        scaled_rgb = tuple(int(c * i) for c in average_rgb)
-        base_colors_rgb.append(scaled_rgb)
+    """Generates 8 base colors with more defined dark, mid, and bright ranges."""
+    shades = generate_shades(average_rgb, 16)
+    base_colors_rgb = [
+        shades[2],
+        shades[3],
+        shades[5],
+        shades[7],
+        shades[9],
+        shades[11],
+        shades[13],
+        shades[14],
+    ]
     return [rgb_to_hex(c) for c in base_colors_rgb]
+
 
 def generate_accent_colors(image_path, num_colors=8):
     """Generates accent colors using K-means clustering on the image pixels."""
