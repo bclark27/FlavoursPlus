@@ -121,7 +121,7 @@ def generate_shades(rgb, num_shades):
 
     return shades_255_rgb
 
-def generate_base_colors(average_rgb):
+def generate_base_colors(average_rgb, light=False):
     """Generates 8 base colors with more defined dark, mid, and bright ranges."""
     shades = generate_shades(average_rgb, 26)
     base_colors_rgb = [
@@ -134,10 +134,14 @@ def generate_base_colors(average_rgb):
         shades[22],
         shades[24],
     ]
+
+    if (light):
+        base_colors_rgb.reverse()
+
     return [rgb_to_hex(c) for c in base_colors_rgb]
 
 
-def generate_accent_colors(image_path, num_colors=8):
+def generate_accent_colors(image_path, style_drift=0.5, num_colors=8):
     """Generates accent colors using K-means clustering on the image pixels."""
     img = Image.open(image_path).convert('RGB')
     pixels = np.array(img.getdata()).reshape(-1, 3)
@@ -160,14 +164,14 @@ def generate_accent_colors(image_path, num_colors=8):
 
     matches, remaining = find_most_similar_subset(cluster_centers, target6)
 
-    f = 0.5
+    
     for i in range(len(matches)):
         m = matches[i]
         n = [0,0,0]
         #n[0] = int((m[0] + target6[i][0]) / 2)
-        n[0] = int((target6[i][0] - m[0]) * f + m[0])
-        n[1] = int((target6[i][1] - m[1]) * f + m[1])
-        n[2] = int((target6[i][2] - m[2]) * f + m[2])
+        n[0] = int((target6[i][0] - m[0]) * style_drift + m[0])
+        n[1] = int((target6[i][1] - m[1]) * style_drift + m[1])
+        n[2] = int((target6[i][2] - m[2]) * style_drift + m[2])
         matches[i] = tuple(n)
 
     matches += remaining
@@ -220,17 +224,19 @@ def apply_flavours(scheme_name):
 
 def main():
 
-    if len(sys.argv) != 3:
-        print("Usage: python image_colors.py <image_path> <scheme_name>")
+    if len(sys.argv) != 5:
+        print("Usage: python image_colors.py <image_path> <light/dark (l/d)> <style drift amount> <scheme_name>")
         sys.exit(1)
 
     image_path = sys.argv[1]
-    scheme_name = sys.argv[2]
+    light = sys.argv[2] == 'light' or sys.argv[2] == 'l'
+    style_drift = float(sys.argv[3])
+    scheme_name = sys.argv[4]
     output_file = f"{scheme_name}.yaml"
 
     average_color_rgb = get_average_color(image_path)
-    base_colors = generate_base_colors(average_color_rgb)
-    accent_colors = generate_accent_colors(image_path)
+    base_colors = generate_base_colors(average_color_rgb, light)
+    accent_colors = generate_accent_colors(image_path, style_drift)
     terminal_colors = format_terminal_colors(base_colors, accent_colors, scheme_name)
     print("\nGenerated 16-color scheme for Linux terminal:\n")
     print(terminal_colors)
